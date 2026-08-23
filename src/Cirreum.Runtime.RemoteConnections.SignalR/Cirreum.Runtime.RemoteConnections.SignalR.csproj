@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<AssemblyName>Cirreum.Runtime.RemoteConnections.SignalR</AssemblyName>
+		<RootNamespace>Cirreum.Runtime</RootNamespace>
+		<Description>Runtime Extensions package for Cirreum SignalR remote connections — app-facing AddRemoteConnection&lt;TConnection&gt;() and AddRemoteConnectionFactory&lt;TConnection&gt;() extensions that register a typed, lifecycle-managed SignalR client connection from options.</Description>
+		<PackageTags>cirreum;runtime;signalr;realtime;client;remoteconnections</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Cirreum.Domain / Contracts / Kernel (incl. IDomainApplicationBuilder) flow in transitively. -->
+		<PackageReference Include="Cirreum.RemoteConnections.SignalR" Version="1.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Cirreum.RemoteServices" />
+	</ItemGroup>
+
+</Project>

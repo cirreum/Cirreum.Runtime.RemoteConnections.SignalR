@@ -10,20 +10,91 @@
 
 ## Overview
 
-**Cirreum.Runtime.RemoteConnections.SignalR** registers typed SignalR client connections on a Cirreum application builder.
+**Cirreum.Runtime.RemoteConnections.SignalR** registers typed SignalR client connections on a Cirreum
+application builder, replacing the hand-written singleton factory an application would otherwise
+compose. Registration gives the connection framework-owned lifetime, reconnect policy, access-token
+refresh, observable state, and disposal.
+
+The transport implementation ships in `Cirreum.RemoteConnections.SignalR` and flows in transitively.
+
+## Usage
+
+Write the connection type. It derives from `SignalRRemoteConnection` and takes the
+framework-supplied context as its first constructor parameter; anything else resolves from the
+container as usual:
 
 ```csharp
+public sealed class ChatConnection(SignalRRemoteConnectionContext context)
+    : SignalRRemoteConnection(context) {
+
+    public IDisposable OnMessage(Func<ChatMessage, Task> handler) =>
+        this.On("ReceiveMessage", handler);
+
+    public Task SendMessageAsync(ChatMessage message, CancellationToken ct = default) =>
+        this.SendAsync("SendMessage", message, ct);
+
+}
+```
+
+Register it on the builder:
+
+```csharp
+var builder = DomainApplication.CreateBuilder(args);
+
 builder.AddRemoteConnection<ChatConnection>(options => {
     options.EndpointUri = new Uri("https://api.example.com/hubs/chat");
 });
 ```
 
-That one line gives the connection framework-owned lifetime, reconnect policy, access-token refresh,
-observable state, and disposal. Use `AddRemoteConnectionFactory<TConnection>()` instead when a
-connection belongs to a session rather than to the application — one per call, one per bridge.
+The connection resolves as `ChatConnection` and as `IRemoteConnection`, so a status surface can
+inject `IEnumerable<IRemoteConnection>` and render every connection's state without knowing the
+concrete types.
 
-The transport implementation ships in `Cirreum.RemoteConnections.SignalR` and flows in
-transitively.
+Registration does not connect. Inject the connection and connect when the caller is ready —
+typically after sign-in rather than at startup:
+
+```csharp
+protected override async Task OnInitializedAsync() {
+    this._subscription = this.Chat.OnMessage(this.HandleMessageAsync);
+    this.Chat.StateChanged += this.OnConnectionStateChanged;
+    await this.Chat.ConnectAsync();
+}
+```
+
+Never dispose an injected connection: the container created it and disposes it with the host.
+
+### Per-session connections
+
+A connection that belongs to a session rather than to the application — one per phone call, one per
+bridge — registers a factory instead:
+
+```csharp
+builder.AddRemoteConnectionFactory<TranscriptionConnection>(options => {
+    options.EndpointUri = new Uri("https://api.example.com/hubs/transcription");
+});
+```
+
+This registers `IRemoteConnectionFactory<TranscriptionConnection>` and no connection instance, so a
+status surface enumerating standing connections never sees per-session ones. Ownership inverts with
+the lifetime: the caller creates, connects, and disposes what the factory returns.
+
+```csharp
+await using var session = this._transcriptionFactory.Create();
+await session.ConnectAsync(ct);
+```
+
+`Create` optionally adjusts the registered options for one session, leaving the registration
+untouched for every later one.
+
+### Notes
+
+- **One registration per connection type**, in either shape. Registering the same type twice with
+  equal options is a no-op; with different options, or under both verbs, it throws. Subclass the
+  connection to reach a second endpoint.
+- **Credentials** resolve from the options when set, and otherwise from the host's ambient
+  `IRemoteConnectionTokenSource` — which `Cirreum.Runtime.Wasm` registers from the browser session.
+- **The native transport** is reachable through the optional `configureTransport` delegate, which
+  receives the `IHubConnectionBuilder` itself after the framework has configured it.
 
 ## Documentation
 

@@ -12,7 +12,7 @@
 
 **Cirreum.Runtime.RemoteConnections.SignalR** registers typed SignalR client connections on a Cirreum
 application builder, replacing the hand-written singleton factory an application would otherwise
-compose. Registration gives the connection framework-owned lifetime, reconnect policy, access-token
+compose. Registration gives the connection framework-owned lifetime, reconnect policy, credential
 refresh, observable state, and disposal.
 
 The transport implementation ships in `Cirreum.RemoteConnections.SignalR` and flows in transitively.
@@ -92,7 +92,26 @@ untouched for every later one.
   equal options is a no-op; with different options, or under both verbs, it throws. Subclass the
   connection to reach a second endpoint.
 - **Credentials** resolve from the options when set, and otherwise from the host's ambient
-  `IRemoteConnectionTokenSource` — which `Cirreum.Runtime.Wasm` registers from the browser session.
+  `IRemoteConnectionCredentialSource`, which the host runtime registers. Name the audience on the
+  options and the host mints for it:
+
+  ```csharp
+  builder.AddRemoteConnection<ChatConnection>(options => {
+      options.EndpointUri = new Uri("https://api.example.com/hubs/chat");
+      options.Scopes = ["api://contoso/access_as_user"];
+  });
+  ```
+
+  A source registered *keyed* to a connection type is preferred over the unkeyed one for that
+  connection, so one connection can use a different mechanism or identity provider than another:
+
+  ```csharp
+  services.AddKeyedScoped<IRemoteConnectionCredentialSource, PartnerCredentialSource>(typeof(PartnerConnection));
+  ```
+
+  For a factory registration the options are copied per instance, so `Create`'s adjustment — a
+  different audience for one session — does not reach the registration every later session is built
+  from.
 - **The native transport** is reachable through the optional `configureTransport` delegate, which
   receives the `IHubConnectionBuilder` itself after the framework has configured it.
 

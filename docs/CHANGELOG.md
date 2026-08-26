@@ -12,6 +12,38 @@ guides linked at the bottom of each entry.
 
 ## [Unreleased]
 
+### Breaking
+
+* **The connection types move to `Cirreum.RemoteServices.Connections`**, following
+  `Cirreum.Contracts` 5.0.0, `Cirreum.Domain` 5.0.0 and `Cirreum.RemoteConnections.SignalR` 2.0.0.
+  A service is something you call; a connection is something you hold open, so it nests rather than
+  sitting alongside. An application writing a connection type changes one `using`.
+
+* **The credential seam follows the transport.** `RemoteConnectionOptions.CredentialProvider`
+  replaces `AccessTokenProvider`, and the ambient source is `IRemoteConnectionCredentialSource`.
+  A resolved credential that is `null` now fails the connect rather than opening an unauthenticated
+  one; `AuthorizationHeaderSettings.None` is how a connection says it wants none.
+
+### Added
+
+* **`RemoteConnectionOptions.Scopes` is carried through registration**, so a connection names the
+  audience its credential is minted for and the host runtime needs no per-application source.
+
+* **The registration stamps the connection type**, which reaches the credential source in its
+  request. A source registered keyed to that type is preferred over the unkeyed one, so one
+  connection can use a different mechanism or identity provider than another.
+
+### Fixed
+
+* **A factory-created connection carries the registered scopes.** The per-instance options copy is
+  the only path a per-session connection's options travel, and a property it omits is lost in
+  silence — for scopes, that is a connection whose credential source is never told which audience
+  to mint for.
+
+### Updated
+
+- `Cirreum.RemoteConnections.SignalR` 2.0.0.
+
 ### Updated
 
 - Updated NuGet packages.

@@ -76,7 +76,7 @@ public static class RemoteConnectionHostingExtensions {
 
 			builder.Services
 				.AddSingleton(sp => {
-					var context = SignalRRemoteConnectionContext.Create(sp, options, configureTransport);
+					var context = SignalRRemoteConnectionContext.Create<TConnection>(sp, options, configureTransport);
 					return ActivatorUtilities.CreateInstance<TConnection>(sp, context);
 				})
 				.AddSingleton<IRemoteConnection>(sp => sp.GetRequiredService<TConnection>());
